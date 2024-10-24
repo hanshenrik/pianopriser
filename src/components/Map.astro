@@ -1,0 +1,152 @@
+---
+import "mapbox-gl/dist/mapbox-gl.css";
+import type { PianoTuner } from "../types";
+
+interface Props {
+  center?: [number, number];
+  pianoTuners: Array<PianoTuner>;
+}
+
+const { center, pianoTuners } = Astro.props;
+---
+
+<div id="map" class="h-72 w-full sm:h-96 md:h-[480px]"></div>
+
+<script is:inline define:vars={{ center, pianoTuners }} lang="ts">
+  // Load mapbox-gl from CDN
+  const script = document.createElement("script");
+  script.src = "https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js";
+  document.head.appendChild(script);
+
+  script.onload = () => {
+    mapboxgl.accessToken =
+      "pk.eyJ1IjoiaGFuc2hlbnJpayIsImEiOiJjbTJuczRlczAwNnVlMnJzYnd6NHFrZWF6In0.T1pNhzjbfusI5AaPZxj6Eg";
+
+    const navigationControl = new mapboxgl.NavigationControl();
+    const fullscreenControl = new mapboxgl.FullscreenControl();
+    const geolocateControl = new mapboxgl.GeolocateControl();
+
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: center ?? [7.45436325431531, 58.02442355659143],
+      zoom: 13.5,
+    });
+
+    map.addControl(navigationControl, "top-left");
+    map.addControl(geolocateControl, "top-left");
+    map.addControl(fullscreenControl, "top-right");
+
+    map.on("style.load", () => {
+      // Insert the layer beneath any symbol layer.
+      const layers = map.getStyle().layers;
+      const labelLayerId = layers?.find(
+        ({ type, layout }) => type === "symbol" && layout["text-field"],
+      )?.id;
+
+      if (!labelLayerId) return;
+
+      // The 'building' layer in the Mapbox Streets
+      // vector tileset contains building height data
+      // from OpenStreetMap.
+      map.addLayer(
+        {
+          id: "add-3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 14,
+          paint: {
+            "fill-extrusion-color": "#fff",
+            "fill-extrusion-height": { type: "identity", property: "height" },
+            "fill-extrusion-base": { type: "identity", property: "min_height" },
+            "fill-extrusion-opacity": 0.6,
+          },
+        },
+        labelLayerId,
+      );
+
+      // Define a source before using it to create a new layer
+      map.addSource("venues-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: pianoTuners.map(
+            ({ name, website, phone, services, coordinates }) => ({
+              type: "Feature",
+              properties: {
+                name,
+                website,
+                phone,
+                services,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: coordinates,
+              },
+            }),
+          ),
+        },
+      });
+
+      map.addLayer({
+        type: "circle",
+        id: "venues-layer",
+        source: "venues-source",
+        paint: {
+          "circle-radius": 8.5,
+          "circle-color": "#cd584a",
+          "circle-stroke-color": "#ecd4b9",
+          "circle-stroke-width": 2,
+          "circle-opacity": 1,
+        },
+      });
+    });
+
+    // Center the map on the coordinates of any clicked venues-layer from the 'venues-layer' layer.
+    map.on("click", "venues-layer", ({ features, lngLat }) => {
+      if (!features) return;
+      // Copy coordinates array.
+      const coordinates = features[0].geometry.coordinates.slice();
+      const { name, website, phone, services } = features[0].properties;
+
+      // Ensure that if the map is zoomed out such that multiple
+      // copies of the feature are visible, the popup appears
+      // over the copy being pointed to.
+      while (Math.abs(lngLat.lng - coordinates[0]) > 180) {
+        coordinates[0] += lngLat.lng > coordinates[0] ? 360 : -360;
+      }
+
+      new mapboxgl.Popup({ offset: 25 })
+        .setHTML(
+          `<div class="space-y-2">
+          <h3 class="h3">${name}</h3>
+          ${website ? `<a href="${website}" title="Nettsiden til ${name}"">${website}</a>` : ""}
+          ${phone ? `<a href="tel:${phone}" title="Ring til ${name}"">${phone}</a>` : ""}
+          <ul class="flex flex-row flex-wrap gap-2">
+            ${services?.map((service) => `<li class="text-xs bg-gray-100">${service}</li>`).join("")}
+        </div>
+        `,
+        )
+        .setLngLat(coordinates)
+        .addTo(map);
+
+      map.flyTo({
+        center: [lngLat.lng, lngLat.lat],
+        speed: 0.5,
+        curve: 2,
+      });
+    });
+
+    // Change the cursor to a pointer when the it enters a feature in the 'venues-layer' layer.
+    map.on("mouseenter", "venues-layer", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+
+    // Change it back to a pointer when it leaves.
+    map.on("mouseleave", "venues-layer", () => {
+      map.getCanvas().style.cursor = "";
+    });
+  };
+</script>
