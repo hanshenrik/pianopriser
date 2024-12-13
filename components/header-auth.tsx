@@ -12,6 +12,12 @@ export default async function AuthButton() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = await supabase
+    .from('profile')
+    .select()
+    .eq('id', user?.id)
+    .single();
+
   if (!hasEnvVars) {
     return (
       <>
@@ -50,7 +56,7 @@ export default async function AuthButton() {
   }
   return user ? (
     <div className="flex items-center gap-4">
-      Hey, {user.email}!
+      Hey, <Link href="/account">{profile.display_name}</Link>!
       <form action={signOutAction}>
         <Button type="submit" variant={'outline'}>
           Sign out

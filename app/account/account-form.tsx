@@ -8,18 +8,17 @@ import { type User } from '@supabase/supabase-js';
 export default function AccountForm({ user }: { user: User | null }) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [fullname, setFullname] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [website, setWebsite] = useState<string | null>(null);
-  const [avatar_url, setAvatarUrl] = useState<string | null>(null);
+  const [full_name, setFullName] = useState<string | null>(null);
+  const [display_name, setDiaplayName] = useState<string | null>(null);
+  const [image_url, setImageUrl] = useState<string | null>(null);
 
   const getProfile = useCallback(async () => {
     try {
       setLoading(true);
 
       const { data, error, status } = await supabase
-        .from('profiles')
-        .select(`full_name, username, website, avatar_url`)
+        .from('profile')
+        .select(`full_name, display_name, image_url`)
         .eq('id', user?.id)
         .single();
 
@@ -29,10 +28,9 @@ export default function AccountForm({ user }: { user: User | null }) {
       }
 
       if (data) {
-        setFullname(data.full_name);
-        setUsername(data.username);
-        setWebsite(data.website);
-        setAvatarUrl(data.avatar_url);
+        setFullName(data.full_name);
+        setDiaplayName(data.display_name);
+        setImageUrl(data.image_url);
       }
     } catch (error) {
       alert('Error loading user data!');
@@ -42,42 +40,67 @@ export default function AccountForm({ user }: { user: User | null }) {
   }, [user, supabase]);
 
   useEffect(() => {
-    getProfile();
+    if (user) {
+      getProfile();
+    }
   }, [user, getProfile]);
 
   async function updateProfile({
-    username,
-    website,
-    avatar_url,
+    display_name,
   }: {
-    username: string | null;
-    fullname: string | null;
-    website: string | null;
-    avatar_url: string | null;
+    display_name: string | null;
+    full_name: string | null;
   }) {
     try {
       setLoading(true);
 
-      const { error } = await supabase.from('profiles').upsert({
+      console.log({
         id: user?.id as string,
-        full_name: fullname,
-        username,
-        website,
-        avatar_url,
+        full_name,
+        display_name,
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase.from('profile').upsert({
+        id: user?.id as string,
+        full_name,
+        display_name,
         updated_at: new Date().toISOString(),
       });
       if (error) throw error;
       alert('Profile updated!');
     } catch (error) {
-      alert('Error updating the data!');
+      console.error('Error updating the data!', { error });
     } finally {
       setLoading(false);
     }
   }
 
-  return (
+  return !user ? (
+    <div>Du er ikke logget inn</div>
+  ) : (
     <div className="form-widget">
-      {/* ... */}
+      <div>
+        <label htmlFor="image_url">Profile image</label>
+        <input
+          id="image_url"
+          type="file"
+          accept="image/png, image/jpeg"
+          value={image_url || ''}
+          onChange={async (e) => {
+            // TODO: Upload to supabase storage
+            // const avatarFile = e.target.files[0];
+            // const { data, error } = await supabase.storage
+            //   .from('images')
+            //   .upload(`profiles/${user.id}`, avatarFile, {
+            //     cacheControl: '3600',
+            //     upsert: true,
+            //   });
+
+            // Update the image_url shown here
+            setImageUrl(e.target.value);
+          }}
+        />
+      </div>
 
       <div>
         <label htmlFor="email">Email</label>
@@ -88,26 +111,17 @@ export default function AccountForm({ user }: { user: User | null }) {
         <input
           id="fullName"
           type="text"
-          value={fullname || ''}
-          onChange={(e) => setFullname(e.target.value)}
+          value={full_name || ''}
+          onChange={(e) => setFullName(e.target.value)}
         />
       </div>
       <div>
-        <label htmlFor="username">Username</label>
+        <label htmlFor="display_name">Display name</label>
         <input
-          id="username"
+          id="display_name"
           type="text"
-          value={username || ''}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </div>
-      <div>
-        <label htmlFor="website">Website</label>
-        <input
-          id="website"
-          type="url"
-          value={website || ''}
-          onChange={(e) => setWebsite(e.target.value)}
+          value={display_name || ''}
+          onChange={(e) => setDiaplayName(e.target.value)}
         />
       </div>
 
@@ -116,15 +130,13 @@ export default function AccountForm({ user }: { user: User | null }) {
           className="button primary block"
           onClick={() =>
             updateProfile({
-              fullname,
-              username,
-              website,
-              avatar_url,
+              full_name,
+              display_name,
             })
           }
           disabled={loading}
         >
-          {loading ? 'Loading ...' : 'Update'}
+          {loading ? 'Loading …' : 'Update'}
         </button>
       </div>
 
