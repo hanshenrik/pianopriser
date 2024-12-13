@@ -1,4 +1,5 @@
-import AccountForm from './account-form';
+import ProfileForm from './profile-form';
+import PianoTunerForm from './piano-tuner-form';
 import { createClient } from '@/utils/supabase/server';
 
 export default async function Account() {
@@ -8,5 +9,10 @@ export default async function Account() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return <AccountForm user={user} />;
+  return (
+    <>
+      <ProfileForm user={user} />
+      <PianoTunerForm user={user} />
+    </>
+  );
 }
