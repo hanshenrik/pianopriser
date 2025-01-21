@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { type User } from '@supabase/supabase-js';
+import { SubmitButton } from '@/components/submit-button';
 
 // ...
 
@@ -119,22 +120,7 @@ export default function PianoTunerForm({ user }: { user: User | null }) {
     return null;
   } else {
     return (
-      <form
-        className="form-widget"
-        onSubmit={(data) => {
-          console.log({ data });
-          updatePianoTuner({
-            id: pianoTunerId as string,
-            business_name,
-            business_email,
-            business_phone,
-            business_image_url,
-            website_url,
-            education,
-            is_active,
-          });
-        }}
-      >
+      <form className="form-widget">
         <div>
           <label htmlFor="business_image_url">Logo</label>
           <input
@@ -216,13 +202,25 @@ export default function PianoTunerForm({ user }: { user: User | null }) {
         </div>
 
         <div>
-          <button
-            className="button primary block"
-            type="submit"
+          <SubmitButton
+            pendingText="Updating …"
+            formAction={(data: FormData) => {
+              console.log({ data });
+              updatePianoTuner({
+                id: pianoTunerId as string,
+                business_name,
+                business_email,
+                business_phone,
+                business_image_url,
+                website_url,
+                education,
+                is_active,
+              });
+            }}
             disabled={loading}
           >
-            {loading ? 'Loading …' : 'Update'}
-          </button>
+            Update
+          </SubmitButton>
         </div>
       </form>
     );
