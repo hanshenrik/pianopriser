@@ -1,3 +1,5 @@
+import { ProfileCard } from '@/components/ui/profile-card';
+import { Profile } from '@/lib/types';
 import { createClient } from '@/utils/supabase/server';
 import { InfoIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
@@ -8,6 +10,16 @@ export default async function ProtectedPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const profileQuery = supabase
+    .from('profile')
+    .select('*')
+    .eq('id', user?.id);
+  const { data, error } = await profileQuery;
+  if (error) {
+    throw error;
+  }
+  const profile: Profile = data[0];
 
   if (!user) {
     return redirect('/sign-in');
@@ -24,9 +36,7 @@ export default async function ProtectedPage() {
       </div>
       <div className="flex flex-col gap-2 items-start">
         <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(user, null, 2)}
-        </pre>
+        <ProfileCard profile={profile} />
       </div>
     </div>
   );

@@ -12,7 +12,6 @@ export default async function Account() {
   return (
     <>
       <ProfileForm user={user} />
-      <PianoTunerForm user={user} />
     </>
   );
 }

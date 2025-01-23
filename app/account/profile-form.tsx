@@ -2,15 +2,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { type User } from '@supabase/supabase-js';
+import Image from 'next/image';
+import { Profile } from '@/lib/types';
 
-// ...
+const supabase = createClient();
 
 export default function ProfileForm({ user }: { user: User | null }) {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [full_name, setFullName] = useState<string | null>(null);
   const [display_name, setDisplayName] = useState<string | null>(null);
-  const [image_url, setImageUrl] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   const getProfile = useCallback(async () => {
     try {
@@ -18,7 +19,7 @@ export default function ProfileForm({ user }: { user: User | null }) {
 
       const { data, error, status } = await supabase
         .from('profile')
-        .select(`full_name, display_name, image_url`)
+        .select('*')
         .eq('id', user?.id)
         .single();
 
@@ -30,7 +31,7 @@ export default function ProfileForm({ user }: { user: User | null }) {
       if (data) {
         setFullName(data.full_name);
         setDisplayName(data.display_name);
-        setImageUrl(data.image_url);
+        setProfile(data);
       }
     } catch (error) {
       alert('Error loading user data!');
@@ -48,30 +49,37 @@ export default function ProfileForm({ user }: { user: User | null }) {
   async function updateProfile({
     display_name,
     full_name,
+    image_url,
   }: {
     display_name: string | null;
     full_name: string | null;
+    image_url: string | null;
   }) {
     try {
       setLoading(true);
 
       console.log({
         id: user?.id as string,
+        profile_id: profile?.id,
         full_name,
         display_name,
+        image_url,
         updated_at: new Date().toISOString(),
       });
       const { error } = await supabase.from('profile').upsert({
         id: user?.id as string,
         full_name,
         display_name,
+        image_url,
         updated_at: new Date().toISOString(),
       });
-      if (error) throw error;
-      alert('Profile updated!');
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error updating the data!', { error });
     } finally {
+      getProfile();
       setLoading(false);
     }
   }
@@ -86,28 +94,61 @@ export default function ProfileForm({ user }: { user: User | null }) {
           updateProfile({
             full_name,
             display_name,
+            image_url: profile?.image_url || null,
           })
         }
       >
         <div>
+          <Image
+            src={profile?.image_url || '/images/default-avatar.png'}
+            alt="Profile image"
+            width={100}
+            height={100}
+          />
           <label htmlFor="image_url">Profile image</label>
           <input
             id="image_url"
             type="file"
+            multiple={false}
             accept="image/png, image/jpeg"
-            value={image_url || ''}
             onChange={async (e) => {
-              // TODO: Upload to supabase storage
-              // const avatarFile = e.target.files[0];
-              // const { data, error } = await supabase.storage
-              //   .from('images')
-              //   .upload(`profiles/${user.id}`, avatarFile, {
-              //     cacheControl: '3600',
-              //     upsert: true,
-              //   });
+              if (!e.target.files?.[0]) {
+                console.error('No file selected');
+                return;
+              }
 
-              // Update the image_url shown here
-              setImageUrl(e.target.value);
+              try {
+                const avatarFile = e.target.files[0];
+                const fileName = `${user?.id}.${avatarFile.type.split('/')[1]}`;
+                console.log({ fileName });
+                const { data, error } = await supabase.storage
+                  .from('images')
+                  .upload(`profiles/${fileName}`, avatarFile, {
+                    cacheControl: '3600',
+                    upsert: true,
+                    metadata: {
+                      profile_id: profile?.id,
+                    },
+                  });
+
+                console.log('Successful upload!', { data, error });
+
+                const { data: imageData } = supabase.storage
+                  .from('images')
+                  .getPublicUrl(`profiles/${fileName}`);
+
+                console.log({ imageData });
+
+                // if (imageData.publicUrl) {
+                //   updateProfile({
+                //     full_name,
+                //     display_name,
+                //     image_url: imageData.publicUrl,
+                //   });
+                // }
+              } catch (error) {
+                console.error('Error uploading image', { error });
+              }
             }}
           />
         </div>
@@ -145,14 +186,6 @@ export default function ProfileForm({ user }: { user: User | null }) {
           </button>
         </div>
       </form>
-
-      <div>
-        <form action="/auth/signout" method="post">
-          <button className="button block" type="button">
-            Sign out
-          </button>
-        </form>
-      </div>
     </>
   );
 }

@@ -4,10 +4,9 @@ import { createClient } from '@/utils/supabase/client';
 import { type User } from '@supabase/supabase-js';
 import { SubmitButton } from '@/components/submit-button';
 
-// ...
+const supabase = createClient();
 
 export default function PianoTunerForm({ user }: { user: User | null }) {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [pianoTunerId, setPianoTunerId] = useState<string | null>(null);
   const [business_name, setBusinessName] = useState<string | null>(null);
@@ -31,8 +30,6 @@ export default function PianoTunerForm({ user }: { user: User | null }) {
         )
         .eq('profile_id', user?.id)
         .single();
-
-      console.log({ profile_id: data?.profile_id, id: user?.id });
 
       if (error && status !== 406) {
         console.log(error);
@@ -205,7 +202,6 @@ export default function PianoTunerForm({ user }: { user: User | null }) {
           <SubmitButton
             pendingText="Updating …"
             formAction={(data: FormData) => {
-              console.log({ data });
               updatePianoTuner({
                 id: pianoTunerId as string,
                 business_name,

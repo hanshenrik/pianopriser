@@ -7,6 +7,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
+import Link from 'next/link';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -36,6 +37,7 @@ export default function RootLayout({
             <div className="flex-1 w-full flex flex-col gap-20 items-center">
               <header className="w-full">
                 <nav className="w-full flex justify-center items-center border-b border-b-foreground/10 h-16">
+                  <Link href="/">Hjem</Link>
                   <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
                     {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                   </div>
